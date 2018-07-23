@@ -1,0 +1,31 @@
+{
+  "name": "sushi-go",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "mocha server/**/*.test.js",
+    "test-watch": "nodemon --exec 'npm test'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stanleyphu/socket-sushi-go.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/stanleyphu/socket-sushi-go/issues"
+  },
+  "homepage": "https://github.com/stanleyphu/socket-sushi-go#readme",
+  "dependencies": {
+    "express": "^4.16.3",
+    "shuffle": "^0.2.2",
+    "socket.io": "^2.1.1"
+  },
+  "devDependencies": {
+    "expect": "^23.4.0",
+    "mocha": "^5.2.0",
+    "nodemon": "^1.18.3"
+  }
+}
