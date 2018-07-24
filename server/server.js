@@ -60,6 +60,34 @@ function buildDeck() {
     }
 }
 
+function rotateHands() {
+    var hands = [];
+    var k = 0;
+    console.log('BEFORE');
+    for (var id in players) {
+        console.log(id, ' deck: ', players[id].deck);
+    }
+    Object.keys(players).forEach((id, i) => {
+        console.log(i, ' deck', players[id].deck);
+        if (i == numPlayers - 1) {
+            hands.unshift(players[id].deck);
+        }
+        else {
+            hands.push(players[id].deck);
+        }
+    });
+    
+    for (var id in players) {
+       players[id].deck = hands[k++];
+    }
+
+    console.log(hands);
+    console.log('after');
+    for (var id in players) {
+        console.log(id, ' deck: ', players[id].deck);
+    }
+}
+
 io.on('connection', (socket) => {
     console.log('new user' + numPlayers);
 
@@ -70,13 +98,15 @@ io.on('connection', (socket) => {
     players[socket.id] = {
         socket,
         deck: [],
-        score: 0
+        score: 0,
+        nickname: socket.id
     };
     currRound[socket.id] = false;
     numPlayers++;
 
     if (numPlayers == 2) {
         buildDeck();
+        roundsLeft = 3;
         io.emit('newMessage', generateMessage('Admin', 'GAME STARTED'));
         
         for (var id in players) {
@@ -95,6 +125,7 @@ io.on('connection', (socket) => {
             socket.emit('newMessage', generateMessage('Admin', 'Invalid choice. Choose again'));
         }
         else {
+            socket.emit('newMessage', generateMessage('YOU CHOSE', players[socket.id].deck[choice].name + ' ' + players[socket.id].deck[choice].type));
             players[socket.id].score += players[socket.id].deck[choice].points;
             players[socket.id].deck.splice(choice, 1);
             currRound[socket.id] = true;
@@ -110,13 +141,16 @@ io.on('connection', (socket) => {
             io.emit('newMessage', generateMessage('Admin', `ROUND ${3 - roundsLeft} OVER`));
 
             for (var id in players) {
-                io.emit('newMessage', generateMessage(id, players[id].score));
+                io.emit('newMessage', generateMessage(players[id].nickname, players[id].score));
             }
 
             if (roundsLeft == 0) {
                 io.emit('newMessage', generateMessage('Admin', 'GAME OVER'));
             }
             else {
+                // Switch decks
+                rotateHands();
+
                 io.emit('newMessage', generateMessage('Admin', `ROUND ${3 - roundsLeft + 1} BEGINS`));
                 for (var id in players) {
                     players[id].socket.emit('newMessage', generateMessage('YOUR CARDS', JSON.stringify(players[id].deck)));
@@ -128,8 +162,15 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('changeName', (obj) => {
+        console.log('new name ', obj.name);
+        players[socket.id].nickname = obj.name;
+    })
+
     socket.on('disconnect', () => {
         console.log('user disconnected');
+        delete players[socket.id];
+        delete currRound[socket.id];
         numPlayers--;
     })
 });
