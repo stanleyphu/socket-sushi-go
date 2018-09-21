@@ -12,12 +12,13 @@ var server = http.createServer(app);
 var io = socketIO(server);
 
 var deck;
-var p1 = [], p2 = [];
+var users = {};
 var players = {};
+var numUsers = 0;
 var numPlayers = 0;
-var currPlayer = 1;
 var currRound = {};
 var roundsLeft = 3;
+var playersToStart = 0;
 
 app.use(express.static(publicPath));
 
@@ -93,26 +94,32 @@ io.on('connection', (socket) => {
 
     socket.emit('newMessage', generateMessage('Admin', 'Welcome to Sushi Go!'));
 
-    socket.broadcast.emit('newMessage', generateMessage('Admin', 'New player joined'));
+    socket.broadcast.emit('newMessage', generateMessage('Admin', 'New user has joined the room'));
 
-    players[socket.id] = {
-        socket,
-        deck: [],
-        score: 0,
-        nickname: socket.id
-    };
-    currRound[socket.id] = false;
-    numPlayers++;
+    socket.emit('newNumPlayers', {
+        players: playersToStart
+    });
 
-    if (numPlayers == 2) {
-        buildDeck();
-        roundsLeft = 3;
-        io.emit('newMessage', generateMessage('Admin', 'GAME STARTED'));
+    // socket.broadcast.emit('newMessage', generateMessage('Admin', 'New player joined'));
+
+    // players[socket.id] = {
+    //     socket,
+    //     deck: [],
+    //     score: 0,
+    //     nickname: socket.id
+    // };
+    // currRound[socket.id] = false;
+    // numPlayers++;
+
+    // if (numPlayers == 2) {
+    //     buildDeck();
+    //     roundsLeft = 3;
+    //     io.emit('newMessage', generateMessage('Admin', 'GAME STARTED'));
         
-        for (var id in players) {
-            players[id].socket.emit('newMessage', generateMessage('YOUR CARDS', JSON.stringify(players[id].deck)));
-        }
-    }
+    //     for (var id in players) {
+    //         players[id].socket.emit('newMessage', generateMessage('YOUR CARDS', JSON.stringify(players[id].deck)));
+    //     }
+    // }
 
     socket.on('createMessage', (message, callback) => {
         console.log('createMessage', message);
@@ -167,11 +174,59 @@ io.on('connection', (socket) => {
         players[socket.id].nickname = obj.name;
     })
 
+    socket.on('changeNumPlayers', (obj) => {
+        console.log('Game needs ', obj.players, ' players to start');
+        playersToStart = obj.players;
+        io.emit('newNumPlayers', {
+            players: playersToStart
+        });
+    });
+
+    socket.on('joinGame', () => {
+        io.emit('newMessage', generateMessage('Admin', 'New user joined the game'));
+
+        users[socket.id] = {
+            socket,
+            deck: [],
+            score: 0,
+            nickname: socket.id
+        };
+        currRound[socket.id] = false;
+        numUsers++;
+
+        io.emit('newUsersJoined', {
+            usersJoined: numUsers
+        });
+    });
+
+    socket.on('startGame', () => {
+        console.log('user starting game');
+
+        if (users.hasOwnProperty(socket.id)) {
+            players[socket.id] = users[socket.id];  // does this copy or reference?
+            numPlayers++;
+
+            io.emit('newPlayersStarted', {
+                playersStarted: numPlayers
+            });
+
+            if (numPlayers == playersToStart) {
+                buildDeck();
+                roundsLeft = 3;
+                io.emit('newMessage', generateMessage('Admin', 'GAME STARTED'));
+                
+                for (var id in players) {
+                    players[id].socket.emit('newMessage', generateMessage('YOUR CARDS', JSON.stringify(players[id].deck)));
+                }
+            }
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log('user disconnected');
         delete players[socket.id];
         delete currRound[socket.id];
-        numPlayers--;
+        //numPlayers--;
     })
 });
 
